@@ -11,4 +11,8 @@ class Database {
     getAll() {
         return this.data
     }
+
+    findById(id) {
+        return this.data.find((element) => element.id == id)
+    }
 }
