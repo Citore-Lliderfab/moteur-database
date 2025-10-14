@@ -15,4 +15,12 @@ class Database {
     findById(id) {
         return this.data.find((element) => element.id == id)
     }
+
+    find(criteria) {
+        return this.data.filter((element) =>
+            Object.entries(criteria).reduce((accumulator, [key, value]) =>
+                accumulator && (element[key] == value), true
+            )
+        )
+    }
 }
