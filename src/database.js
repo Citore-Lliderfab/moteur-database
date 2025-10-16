@@ -24,6 +24,13 @@ class Database {
         )
     }
 
+    findAny(criteria) {
+        return this.data.filter((element) =>
+            Object.entries(criteria).some(([key, value]) => value == element[key]
+            )
+        )
+    }
+
     findWithOp(criteria) {
         return this.data.filter((element) =>
             Object.entries(criteria).every(([key, value]) => {
@@ -46,8 +53,7 @@ class Database {
                     case '$nin':
                         return !(operator[1].includes(element[key]))
                 }
-            }
-            )
+            })
         )
     }
 }
@@ -58,9 +64,13 @@ db.insert({ id: 1, name: "Alice", age: 30 });
 db.insert({ id: 2, name: "Bob", age: 25 });
 db.insert({ id: 3, name: "Charlie", age: 30 });
 
-let result = db.findWithOp({ age: { $ne: 25 } });
-console.log(result);
+let resultAny = db.findAny({ age: 30 });
+let resultWithOp = db.findWithOp({ age: { $ne: 25 } });
+console.log(resultAny, "**", resultWithOp);
 // Résultat attendu : [
+//   { id: 1, name: "Alice", age: 30 },
+//   { id: 3, name: "Charlie", age: 30 }
+// ] ** [
 //   { id: 1, name: "Alice", age: 30 },
 //   { id: 3, name: "Charlie", age: 30 }
 // ]
@@ -73,20 +83,27 @@ db.insert({ id: 2, name: "Bob", age: 25, city: "Lyon" });
 db.insert({ id: 3, name: "Charlie", age: 30, city: "Marseille" });
 db.insert({ id: 4, name: "David", age: 25, city: "Paris" });
 
-result = db.findWithOp({ age: { $gte: 30 }, city: { $ne: "Marseille" } });
-console.log(result);
+resultAny = db.findAny({ age: 30, city: "Paris" });
+resultWithOp = db.findWithOp({ age: { $gte: 30 }, city: { $ne: "Marseille" } });
+console.log(resultAny, "**", resultWithOp);
 // Résultat attendu : [
 //   { id: 1, name: "Alice", age: 30, city: "Paris" },
+//   { id: 3, name: "Charlie", age: 30, city: "Marseille" },
+//   { id: 4, name: "David", age: 25, city: "Paris" }
+// ] ** [
+//   { id: 1, name: "Alice", age: 30, city: "Paris" }
 // ]
+
 
 console.log('Exemple 3 : Aucun résultat')
 db = new Database();
 db.insert({ id: 1, name: "Alice", age: 30 });
 
-result = db.findWithOp({ age: { $lt: 28 } });
-console.log(result);
-// Résultat attendu : []
-console.log(result.length === 0); // true
+resultAny = db.findAny({ age: 50 });
+resultWithOp = db.findWithOp({ age: { $lt: 28 } });
+console.log(resultAny, "**", resultWithOp);
+// Résultat attendu : [] ** []
+console.log(resultAny.length === 0, "**", resultWithOp.length === 0); // true ** true
 
 console.log('Exemple 4 : Recherche sur des propriétés booléennes');
 db = new Database();
@@ -94,6 +111,6 @@ db.insert({ id: 1, name: "Alice", active: true });
 db.insert({ id: 2, name: "Bob", active: false });
 db.insert({ id: 3, name: "Charlie", active: true });
 
-result = db.find({ active: true });
+result = db.findAny({ active: true });
 console.log(result);
 // Résultat attendu : Alice et Charlie
