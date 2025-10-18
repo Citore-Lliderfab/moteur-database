@@ -25,7 +25,8 @@ class Database {
     }
 
     update(id, changes) {
-        return Object.assign(this.findById(id), changes)
+        const changesWithoutId = Object.fromEntries(Object.entries(changes).filter(([key, value]) => key !== 'id'));
+        return Object.assign(this.findById(id), changesWithoutId)
     }
 
 }
