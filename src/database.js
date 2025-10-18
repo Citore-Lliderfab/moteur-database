@@ -23,4 +23,9 @@ class Database {
             )
         )
     }
+
+    update(id, changes) {
+        return Object.assign(this.findById(id), changes)
+    }
+
 }
