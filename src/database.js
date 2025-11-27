@@ -28,4 +28,10 @@ class Database {
         return Object.assign(this.findById(id), changes)
     }
 
+    delete(id) {
+        const nbData = this.getAll().length;
+        const newData = this.data.filter((record) => record.id !== id);
+        this.data = newData;
+        if (this.getAll().length !== nbData && !this.findById(id)) { return true } else return false
+    }
 }
