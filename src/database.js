@@ -25,7 +25,10 @@ class Database {
     }
 
     update(id, changes) {
-        const record = this.findById(id);
+        const indexRecord = this.data.findIndex((element) => element.id == id);
+        if (indexRecord === -1) return null;
+        console.log(indexRecord);
+        const deepCloneRecord = JSON.parse(JSON.stringify(this.findById(id)));
         const changesWithoutId = Object.fromEntries(Object.entries(changes).filter(([key, value]) => key !== 'id'));
         console.log(Object.keys(changesWithoutId));
         function modifierClef(objet, nomClef, nouvelleValeur) {
@@ -38,9 +41,16 @@ class Database {
             }
         }
         Object.entries(changesWithoutId).forEach(([key, value]) => {
-            modifierClef(record, key, value)
+            modifierClef(deepCloneRecord, key, value)
         })
-        return record;
+        const newData = [
+            ...this.data.slice(0, indexRecord),
+            deepCloneRecord,
+            ...this.data.slice(indexRecord + 1)
+        ];
+        this.data = newData;
+        console.log(this.data);
+        return deepCloneRecord
     }
 
 }
@@ -48,6 +58,8 @@ class Database {
 console.log("=== Test 1 : Modifier une seule propriété ===");
 let db = new Database();
 db.insert({ id: 1, name: "Alice", age: 30, adresse: { lane: "Avenue des Champs-Elysés", city: "Paris" } });
+db.insert({ id: 2, name: "Bob", age: 25, adresse: { lane: "Rue Victor Hugo", city: "Lille" } });
+
 
 console.log("Avant :", db.findById(1));
 db.update(1, { age: 31 });
