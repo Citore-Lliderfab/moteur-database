@@ -25,8 +25,61 @@ class Database {
     }
 
     update(id, changes) {
+        const record = this.findById(id);
         const changesWithoutId = Object.fromEntries(Object.entries(changes).filter(([key, value]) => key !== 'id'));
-        return Object.assign(this.findById(id), changesWithoutId)
+        console.log(Object.keys(changesWithoutId));
+        function modifierClef(objet, nomClef, nouvelleValeur) {
+            for (let clef in objet) {
+                if (clef === nomClef) {
+                    objet[clef] = nouvelleValeur;
+                } else if (typeof objet[clef] === 'object' && objet[clef] !== null) {
+                    modifierClef(objet[clef], nomClef, nouvelleValeur);
+                }
+            }
+        }
+        Object.entries(changesWithoutId).forEach(([key, value]) => {
+            modifierClef(record, key, value)
+        })
+        return record;
     }
 
 }
+
+console.log("=== Test 1 : Modifier une seule propriété ===");
+let db = new Database();
+db.insert({ id: 1, name: "Alice", age: 30, adresse: { lane: "Avenue des Champs-Elysés", city: "Paris" } });
+
+console.log("Avant :", db.findById(1));
+db.update(1, { age: 31 });
+console.log("Après :", db.findById(1));
+console.log("Age modifié ?", db.findById(1).age === 31);
+console.log("Autres propriétés intactes ?",
+    db.findById(1).name === "Alice" &&
+    db.findById(1).adresse.lane === "Avenue des Champs-Elysés" &&
+    db.findById(1).adresse.city === "Paris"
+)
+console.log("=== Test 2 : Modifier plusieurs sous-propriétés ===");
+db = new Database();
+db.insert({ id: 1, name: "Alice", age: 30, adresse: { lane: "Avenue des Champs-Elysés", city: "Paris" } });
+
+console.log("Avant :", db.findById(1));
+db.update(1, { city: "Lyon", lane: "Rue des Cardeurs" });
+console.log("Après :", db.findById(1));
+console.log("Lane modifiée ?", db.findById(1).adresse.lane === "Rue des Cardeurs");
+console.log("City modifiée ?", db.findById(1).adresse.city === "Lyon");
+console.log("Autres propriétés intactes ?",
+    db.findById(1).name === "Alice" &&
+    db.findById(1).age === 30
+)
+console.log("=== Test 3 : Modifier une propriété et une sous-propriété ===");
+db = new Database();
+db.insert({ id: 1, name: "Alice", age: 30, adresse: { lane: "Avenue des Champs-Elysés", city: "Paris" } });
+
+console.log("Avant :", db.findById(1));
+db.update(1, { age: 31, lane: "Rue des Cardeurs" });
+console.log("Après :", db.findById(1));
+console.log("Age modifié ?", db.findById(1).age === 31);
+console.log("Lane modifiée ?", db.findById(1).adresse.lane === "Rue des Cardeurs");
+console.log("Autre propriété intacte ?",
+    db.findById(1).name === "Alice"
+)
