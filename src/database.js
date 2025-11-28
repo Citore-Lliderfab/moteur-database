@@ -32,7 +32,8 @@ class Database {
         const nbData = this.getAll().length;
         const newData = this.data.filter((record) => record.id !== id);
         this.data = newData;
-        if (this.getAll().length !== nbData && !this.findById(id)) { return true } else return false
+        const nbDeletedRecords = nbData - this.getAll().length;
+        return nbDeletedRecords
     }
 
     deleteWithOp(criteria) {
