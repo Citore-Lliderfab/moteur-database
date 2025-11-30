@@ -5,7 +5,12 @@ class Database {
     }
 
     insert(record) {
-        this.data.push(record)
+        record.delete = false;
+        if (this.getDeleted().find((recordDelete) => recordDelete.id === record.id)) {
+            Object.assign(this.getDeleted().find((recordDelete) => recordDelete.id === record.id), record)
+            return
+        }
+        this.data.push(record);
     }
 
     getAll() {
@@ -28,74 +33,83 @@ class Database {
         return Object.assign(this.findById(id), changes)
     }
 
-    delete(id) {
-        const nbData = this.getAll().length;
-        const newData = this.data.filter((record) => record.id !== id);
-        this.data = newData;
-        const nbDeletedRecords = nbData - this.getAll().length;
+    deleteSoft(id) {
+        const nbIniData = this.getAll().filter((record) => record.delete !== true).length;
+        this.data.forEach((record) => { if (record.id === id) record.delete = true });
+        const nbFinData = this.getAll().filter((record) => record.delete !== true).length;
+        const nbDeletedRecords = nbIniData - nbFinData;
         return nbDeletedRecords
     }
 
-    deleteWithOp(criteria) {
-        const nbData = this.getAll().length;
-        const newData = this.data.filter((record) =>
-            Object.entries(criteria).some(([key, value]) => {
-                const operator = Object.entries(value)[0];
-                switch (operator[0]) {
-                    case '$eq':
-                        return record[key] !== operator[1]
-                    case '$gt':
-                        return record[key] <= operator[1]
-                    case '$gte':
-                        return record[key] < operator[1]
-                    case '$in':
-                        return !operator[1].includes(record[key])
-                    case '$lt':
-                        return record[key] >= operator[1]
-                    case '$lte':
-                        return record[key] > operator[1]
-                    case '$ne':
-                        return record[key] == operator[1]
-                    case '$nin':
-                        return (operator[1].includes(record[key]))
-                }
-            })
-        )
-        this.data = newData;
-        if (this.getAll().length !== nbData) { return true } else return false
+    getActive(){
+        return this.getAll().filter((record) => record.delete === false)
     }
+
+    getDeleted(){
+        return this.getAll().filter((record) => record.delete === true)
+    }
+
 }
 
-console.log('Exemple 1 : Suppression avec un seul critère');
+console.log('**** Exemple 1 : Suppression simple ****');
 let db = new Database();
 db.insert({ id: 1, name: "Alice", age: 30 });
 db.insert({ id: 2, name: "Bob", age: 25 });
 db.insert({ id: 3, name: "Charlie", age: 30 });
 
-let result = db.deleteWithOp({ age: { $ne: 25 } });
-console.log(result, db.getAll());
-// Résultat attendu : true,
-// [{ id: 2, name: "Bob", age: 25 }]
+let result = db.deleteSoft(2);
+console.log("Nb suppression(s) :",result);
+console.log("Enregistrement(s) actif(s) :", db.getActive());
+console.log("Enregistrement(s) supprimé(s) :", db.getDeleted());
+// Résultat attendu :
+// Nb suppression(s) : 1,
+// Enregistrement(s) actif(s): [{ id: 1, name: "Alice", age: 30, delete: false },
+// { id: 3, name: "Charlie", age: 30, delete: false }]
+// Enregistrement(s) supprimé(s) : [{ id: 2, name: "Bob", age: 25, delete: true }]
 
-console.log('Exemple 2 : Suppression avec plusieurs critères');
-db = new Database();
-db.insert({ id: 1, name: "Alice", age: 30, city: "Paris" });
-db.insert({ id: 2, name: "Bob", age: 25, city: "Lyon" });
-db.insert({ id: 3, name: "Charlie", age: 30, city: "Marseille" });
-db.insert({ id: 4, name: "David", age: 25, city: "Paris" });
-
-result = db.deleteWithOp({ age: { $gt: 20 }, city: { $eq: "Paris" } });
-console.log(result, db.getAll());
-// Résultat attendu : true, [
-//   { id: 2, name: "Bob", age: 25, city: "Lyon" },
-//   { id: 3, name: "Charlie", age: 30, city: "Marseille" },
-// ]
-
-console.log('Exemple 3 : Aucune suppression')
+console.log('\n**** Exemple 2 : Aucune suppression ****')
 db = new Database();
 db.insert({ id: 1, name: "Alice", age: 30 });
+db.insert({ id: 2, name: "Bob", age: 25 });
 
-result = db.deleteWithOp({ age: { $lt: 28 } });
-console.log(result, db.getAll());
-// Résultat attendu : false,
-// [{ id: 1, name: "Alice", age: 30 }]
+result = db.deleteSoft(399);
+console.log("Nb suppression(s) :",result);
+console.log("Enregistrement(s) actif(s) :", db.getActive());
+console.log("Enregistrement(s) supprimé(s) :", db.getDeleted());
+// Résultat attendu :
+// Nb suppression(s) : 0,
+// Enregistrement(s) actif(s): [{ id: 1, name: "Alice", age: 30, delete: false },
+// { id: 2, name: "Bob", age: 25, delete: false },]
+// Enregistrement(s) supprimé(s) : []
+
+console.log('\n**** Exemple 3 : Suppressions successives ****')
+db = new Database();
+db.insert({ id: 1, name: "Alice", age: 30 });
+db.insert({ id: 2, name: "Bob", age: 25 });
+db.insert({ id: 3, name: "Charlie", age: 30 });
+
+result = db.deleteSoft(1);
+console.log("Nb suppression(s) :",result);
+console.log("Enregistrement(s) actif(s) :", db.getActive());
+console.log("Enregistrement(s) supprimé(s) :", db.getDeleted());
+// Nb suppression(s) : 1,
+// Enregistrement(s) actif(s): [{ id: 2, name: "Bob", age: 25, delete: false },
+// { id: 3, name: "Charlie", age: 30, delete: false }]
+// Enregistrement(s) supprimé(s) : [{ id: 1, name: "Alice", age: 30, delete: true }]
+result = db.deleteSoft(2);
+console.log("\nNb suppression(s) :",result);
+console.log("Enregistrement(s) actif(s) :", db.getActive());
+console.log("Enregistrement(s) supprimé(s) :", db.getDeleted());
+// Nb suppression(s) : 1,
+// Enregistrement(s) actif(s): [{ id: 3, name: "Charlie", age: 30, delete: false }]
+// Enregistrement(s) supprimé(s) : [{ id: 1, name: "Alice", age: 30, delete: true },
+// { id: 2, name: "Bob", age: 25, delete: true }]
+result = db.deleteSoft(3);
+console.log("\nNb suppression(s) :",result);
+console.log("Enregistrement(s) actif(s) :", db.getActive());
+console.log("Enregistrement(s) supprimé(s) :", db.getDeleted());
+// Nb suppression(s) : 1,
+// Enregistrement(s) actif(s): []
+// Enregistrement(s) supprimé(s) : [{ id: 1, name: "Alice", age: 30, delete: true },
+// { id: 2, name: "Bob", age: 25, delete: true },
+// { id: 3, name: "Charlie", age: 30, delete: true }]
