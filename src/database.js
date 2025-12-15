@@ -5,7 +5,15 @@ class Database {
     }
 
     insert(record) {
-        this.data.push(record)
+        if (record.id) {
+            if (!this.findById(record.id)) {
+                this.data.push(record)
+            } else {
+                throw new Error(`Cannot insert record for "${record.name}": id "${record.id}" already exists!`)
+            }
+        } else {
+            throw new Error(`Cannot insert record for "${record.name}": id is required!`)
+        }
     }
 
     getAll() {
@@ -25,8 +33,11 @@ class Database {
     }
 
     find(criteria) {
-        return this.data.filter((record) =>
-            Object.keys(criteria).every((key) => criteria[key] === record[key]))
+        if (typeof criteria === "object" && criteria !== null && !Array.isArray(criteria))
+            return this.data.filter((record) =>
+                Object.keys(criteria).every((key) => criteria[key] === record[key]))
+        else
+            throw new Error(`Criteria is not an object: it must be one!`)
     }
 
     findWithEntries(criteria) {
@@ -66,14 +77,21 @@ class Database {
     }
 
     update(id, changes) {
-        return Object.assign(this.findById(id), changes)
+        if (this.findById(id))
+            return Object.assign(this.findById(id), changes)
+        else
+            throw new Error(`Cannot update: record with id "${id}" not found!`)
     }
 
     changesWithoutId(changes) { Object.fromEntries(Object.entries(changes).filter(([key, value]) => key !== 'id')) };
 
     updateExceptId(id, changes) {
-        const changesWithoutId = this.changesWithoutId(changes);
-        this.update(id, changesWithoutId)
+        if (Object.keys(changes).find((key) => key === 'id'))
+            throw new Error(`Cannot update because id's key "${id}" is in {changes}!`)
+        else {
+            const changesWithoutId = this.changesWithoutId(changes);
+            this.update(id, changesWithoutId)
+        }
     }
 
     modifierClef(objet, nomClef, nouvelleValeur) {
@@ -117,10 +135,14 @@ class Database {
     }
 
     delete(id) {
-        const nbData = this.getAll().length;
-        const newData = this.data.filter((record) => record.id !== id);
-        this.data = newData;
-        if (this.getAll().length !== nbData && !this.findById(id)) { return true } else return false
+        if (this.findById(id)) {
+            const nbData = this.getAll().length;
+            const newData = this.data.filter((record) => record.id !== id);
+            this.data = newData;
+            if (this.getAll().length !== nbData && !this.findById(id)) { return true } else return false
+        } else {
+            throw new Error(`Cannot delete: record with id "${id}" not found!`)
+        }
     }
 
     deleteWithOp(criteria) {
@@ -280,3 +302,118 @@ console.log(criteria, "\n", resultFind, "\n", resultDelete, "\n", db.getActive()
 //  { id: 1, name: "Alice", age: 30, city: "Paris", delete: true },
 //  { id: 4, name: "David", age: 25, city: "Paris", delete: true }
 // ]
+
+console.log("\n**** Exemple 1.6.1 : insert() sans ID");
+db = new Database();
+
+try {
+  db.insert({ name: "Alice", age: 30 });
+  console.log("Pas d'erreur - PROBLÈME !");
+} catch (error) {
+  console.log("Erreur :", error.message);
+  // "Cannot insert record: id is required"
+}
+
+console.log("\n**** Exemple 1.6.2 : update() avec ID inexistant");
+db = new Database();
+db.insert({ id: 1, name: "Alice", age: 30 });
+
+try {
+  db.update(999, { age: 31 });
+  console.log("Pas d'erreur - PROBLÈME !");
+} catch (error) {
+  console.log("Erreur :", error.message);
+  // "Cannot update: record with id 999 not found"
+}
+
+console.log("\n**** Exemple 1.6.3 : delete() avec ID inexistant");
+db = new Database();
+db.insert({ id: 1, name: "Alice", age: 30 });
+
+try {
+  db.delete(999);
+  console.log("Pas d'erreur - PROBLÈME !");
+} catch (error) {
+  console.log("Erreur :", error.message);
+  // "Cannot delete: record with id 999 not found"
+}
+
+console.log("\n**** Exemple 1.6.4 : findById() avec ID inexistant (PAS d'erreur)");
+db = new Database();
+db.insert({ id: 1, name: "Alice", age: 30 });
+
+const result = db.findById(999);
+console.log(result); // undefined - pas d'erreur lancée
+
+console.log("\n**** Exemple 1.6.5 : find() avec mauvais type");
+db = new Database();
+
+try {
+  db.find("age: 30"); // Une string au lieu d'un objet
+  console.log("Pas d'erreur - PROBLÈME !");
+} catch (error) {
+  console.log("Erreur :", error.message);
+  // "Criteria must be an object"
+}
+
+
+console.log("\n**** Exemple 1.6.6 : Insert sans ID ou si ID existe déjà");
+db = new Database();
+db.insert({ id: 1, name: "Alice", age: 30, city: "Paris" });
+
+try {
+    const insertSansID = db.insert({ name: "Fred", age: 40, city: "Perpignan" })
+    console.log(insertSansID, "\n", db.getAll())
+} catch (err) {
+    console.log(err.message)
+};
+try {
+    const insertAvecIDExistant = db.insert({ id: 1, name: "Fred", age: 40, city: "Perpignan" });
+    console.log(insertAvecIDExistant, "\n", db.getAll())
+} catch (err) {
+    console.log(err.message)
+}
+
+console.log("\n**** Exemple 1.6.7 : Update si ID n'existe pas");
+db = new Database();
+db.insert({ id: 1, name: "Alice", age: 30, city: "Paris" });
+
+try {
+    const updateWithoutID = db.update(2, { name: "Fred" });
+    console.log(updateWithoutID, "\n", db.getAll())
+} catch (err) {
+    console.log(err.message)
+}
+
+console.log("\n**** Exemple 1.6.8 : Update si ID dans {changes}");
+db = new Database();
+db.insert({ id: 1, name: "Alice", age: 30, city: "Paris" });
+
+try {
+    const updateWithIDInChanges = db.updateExceptId(1, { id: 2 });
+    console.log(updateWithIDInChanges, "\n", db.getAll())
+} catch (err) {
+    console.log(err.message)
+}
+
+console.log("\n**** Exemple 1.6.9 : Delete si ID n'existe pas");
+db = new Database();
+db.insert({ id: 1, name: "Alice", age: 30, city: "Paris" });
+
+try {
+    const deleteWithoutID = db.delete(2, { name: "Fred" });
+    console.log(deleteWithoutID, "\n", db.getAll());
+} catch (err) {
+    console.log(err.message)
+}
+
+console.log("\n**** Exemple 1.6.10 : Find si criteria n'est pas un objet");
+db = new Database();
+db.insert({ id: 1, name: "Alice", age: 30, city: "Paris" });
+
+try {
+    const findNotObject = db.find(null);
+    console.log(findNotObject, "\n", db.getAll());
+} catch (err) {
+    console.log(err.message)
+}
